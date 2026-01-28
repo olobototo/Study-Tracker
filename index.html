@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyTracker v26</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <div class="app-container">
+        <nav class="sidebar">
+            <h2>Study<span class="highlight">Tracker</span></h2>
+            <ul>
+                <li onclick="showSection('timer-section')" class="active"><span class="material-icons">timer</span> Estudio</li>
+                <li onclick="showSection('calendar-section')"><span class="material-icons">calendar_today</span> Agenda</li>
+                <li onclick="showSection('subjects-section')"><span class="material-icons">folder</span> Materias</li>
+                <li onclick="showSection('stats-section')"><span class="material-icons">equalizer</span> Estadísticas</li>
+            </ul>
+            
+            <div class="config-section">
+                <p>CONFIGURACIÓN</p>
+                <button onclick="exportData()" class="btn-config">⬇ Exportar</button>
+                <button onclick="document.getElementById('importInput').click()" class="btn-config">⬆ Importar</button>
+                <input type="file" id="importInput" style="display:none" onchange="importData(this)">
+                <button onclick="hardReset()" class="btn-config danger">⚠ Resetear App</button>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            
+            <section id="timer-section" class="active-section">
+                
+                <div id="widgetsArea">
+                    <div id="countdownWidget" class="hidden">
+                        <h3>⏳ Eventos Generales</h3>
+                        <div id="countdownGrid" class="countdown-grid"></div>
+                    </div>
+                </div>
+
+                <div id="selectionArea">
+                    <h1>¿Qué vamos a estudiar hoy?</h1>
+                    <div id="subjectGrid" class="subject-selection-grid"></div>
+                    <div id="noSubjectsMsg" class="hidden empty-state">
+                        <span class="material-icons" style="font-size: 3rem; color: #45475a;">library_add</span>
+                        <p>No tienes materias creadas.<br>Ve a la pestaña "Materias" para empezar.</p>
+                    </div>
+                </div>
+
+                <div id="timerContainer" class="timer-card hidden">
+                    <h2 id="currentSubjectTitle" style="color:var(--accent); margin-bottom: 20px;">Materia</h2>
+
+                    <div id="subjectCountdownWidget" class="hidden" style="margin-bottom: 20px;">
+                        <h4 style="margin:0 0 10px 0; color:#a6adc8; font-size:0.9rem;">Próximos en esta materia:</h4>
+                        <div id="subjectCountdownGrid" class="countdown-grid-mini"></div>
+                    </div>
+
+                    <div class="mode-tabs">
+                        <button onclick="setMode('timer')" id="btnModeTimer" class="mode-btn active">⏱ Cronómetro</button>
+                        <button onclick="setMode('manual')" id="btnModeManual" class="mode-btn">📝 Manual</button>
+                    </div>
+
+                    <div id="viewTimer">
+                        <div class="timer-display" id="display">00:00:00</div>
+                        <div class="controls">
+                            <button id="startBtn" class="btn start">Iniciar</button>
+                            <button id="pauseBtn" class="btn pause" disabled>Pausar</button>
+                            <button id="stopBtn" class="btn stop" disabled>Terminar</button>
+                        </div>
+                    </div>
+
+                    <div id="viewManual" class="hidden manual-container">
+                        <div class="manual-row"><div class="input-group"><label>Fecha</label><input type="date" id="manualDate"></div></div>
+                        <div class="manual-row">
+                            <div class="input-group"><label>Horas</label><input type="number" id="manualHours" min="0" value="1"></div>
+                            <div class="input-group"><label>Minutos</label><input type="number" id="manualMinutes" min="0" max="59" value="0"></div>
+                        </div>
+                        <button onclick="saveManualSession()" class="btn start" style="width:100%; margin-top:15px;">Guardar Sesión</button>
+                    </div>
+
+                    <div id="timerTasksArea" class="timer-tasks-box">
+                        <h4>📋 Tareas Pendientes</h4>
+                        <ul id="timerTaskList" class="clean-list"></ul>
+                    </div>
+
+                    <div id="saveArea" class="hidden" style="margin-top: 20px; border-top: 1px solid #45475a; padding-top:20px;">
+                        <h3>¡Sesión Terminada!</h3>
+                        <p>Tiempo: <span id="finalTime" style="color: var(--accent); font-weight: bold;"></span></p>
+                        <div style="display: flex; gap: 10px;">
+                            <button id="saveDbBtn" class="btn start" style="flex: 1;">💾 Guardar</button>
+                            <button id="discardBtn" class="btn stop" style="flex: 1; background: #585b70;">🗑️ Descartar</button>
+                        </div>
+                    </div>
+                    
+                    <button onclick="deselectSubject()" class="btn-back">← Volver al menú</button>
+                </div>
+            </section>
+
+            <section id="calendar-section" class="hidden">
+                <div class="calendar-header">
+                    <div class="calendar-controls">
+                        <button onclick="toggleViewMode()" id="viewModeBtn" class="btn-nav">📅 Vista Anual</button>
+                    </div>
+                    <div class="calendar-controls" id="monthNavControls">
+                        <button onclick="changeCalendarDate(-1)" class="btn-nav" id="btnPrev">◀</button>
+                        
+                        <div id="calendarSelectors">
+                            <select id="calMonthSelect" class="calendar-select" onchange="jumpToDate()"></select>
+                            <input type="number" id="calYearInput" class="calendar-select" style="width:70px" onchange="jumpToDate()">
+                        </div>
+                        
+                        <span id="annualYearDisplay" class="hidden" style="font-weight:bold; font-size:1.2rem;"></span>
+
+                        <button onclick="changeCalendarDate(1)" class="btn-nav" id="btnNext">▶</button>
+                    </div>
+                </div>
+
+                <div class="calendar-grid" id="calendarGrid"></div>
+                <div class="year-grid hidden" id="yearGrid"></div>
+
+                <div id="dayDetails" class="day-details-panel hidden">
+                    <div class="details-header">
+                        <h3 id="selectedDateTitle" style="margin:0;">Detalles</h3>
+                        <button onclick="document.getElementById('dayDetails').classList.add('hidden')" style="background:none; border:none; color:#a6adc8; cursor:pointer;">✕</button>
+                    </div>
+                    
+                    <div class="details-section">
+                        <h4 class="section-title">📖 Historial</h4>
+                        <ul id="dayStudyList" class="clean-list"></ul>
+                    </div>
+
+                    <div class="details-section">
+                        <h4 class="section-title">📅 Eventos</h4>
+                        <ul id="dayEventsList" class="clean-list"></ul>
+                        
+                        <div class="event-form-box">
+                            <input type="text" id="newEventTitle" placeholder="Título..." class="input-clean">
+                            <div class="form-row">
+                                <select id="newEventSubject" class="select-clean"></select>
+                                <select id="newEventType" class="select-clean">
+                                    <option value="exam">Examen</option>
+                                    <option value="work">Entrega</option>
+                                    <option value="general">General</option>
+                                </select>
+                                <button onclick="addEvent()" class="btn-icon-add">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="subjects-section" class="hidden">
+                <h1>Mis Materias</h1>
+                <div class="create-subject-bar">
+                    <input type="text" id="newSubjectName" placeholder="Nueva materia...">
+                    <div class="color-picker-wrapper">
+                        <input type="color" id="newSubjectColor" value="#89b4fa">
+                        <span class="color-icon material-icons">palette</span>
+                    </div>
+                    <button onclick="addSubject()" class="btn start">Crear</button>
+                </div>
+                <h3>Gestión:</h3>
+                <ul id="subjectsListManagement" class="management-list"></ul>
+            </section>
+
+            <section id="stats-section" class="hidden">
+                <h1>Estadísticas Globales</h1>
+                
+                <div class="heatmap-wrapper">
+                    <div class="heatmap-header">
+                        <h3>📅 Mapa de Actividad</h3>
+                        <div class="heatmap-nav">
+                            <button onclick="changeHeatmapYear(-1)" class="btn-heatmap-nav">◀</button>
+                            <span id="heatmapYearDisplay">2025</span>
+                            <button onclick="changeHeatmapYear(1)" class="btn-heatmap-nav">▶</button>
+                        </div>
+                    </div>
+                    <div class="heatmap-container">
+                        <div class="heatmap-scroll">
+                            <div class="heatmap-months-label" id="heatmapMonths"></div>
+                            <div id="heatmapGrid" class="heatmap-grid-css"></div>
+                        </div>
+                    </div>
+                    <div class="heatmap-legend">
+                        <span>Menos</span>
+                        <div class="legend-box" style="background:#313244"></div>
+                        <div class="legend-box" style="background:rgba(137, 180, 250, 0.4)"></div>
+                        <div class="legend-box" style="background:rgba(137, 180, 250, 0.7)"></div>
+                        <div class="legend-box" style="background:rgba(137, 180, 250, 1)"></div>
+                        <span>Más</span>
+                    </div>
+                </div>
+
+                <div class="streaks-row">
+                    <div class="streak-card current"><div class="streak-icon">🔥</div><div class="streak-info"><div class="streak-label">Racha Actual</div><div class="streak-number" id="streakDisplay">0 Días</div></div></div>
+                    <div class="streak-card historic"><div class="streak-icon">🏆</div><div class="streak-info"><div class="streak-label">Racha Histórica</div><div class="streak-number" id="bestStreakDisplay">0 Días</div></div></div>
+                </div>
+                
+                <h3>📊 Mejores Momentos</h3>
+                <div class="charts-row">
+                    <div class="chart-wrapper"><h4>Top 3 Días (Histórico)</h4><div id="globalTopDays" class="top-list-container"></div></div>
+                    <div class="chart-wrapper"><h4>Top Meses</h4><div id="globalTopMonths" class="top-list-container"></div><button onclick="toggleAllMonths()" class="btn-view-all">Ver todos los meses</button></div>
+                </div>
+
+                <h3>🏆 Ranking General</h3>
+                <div class="ranking-container-box">
+                    <div class="ranking-tabs">
+                        <button class="rank-tab active" onclick="switchRankingTab('all')">Histórico</button>
+                        <button class="rank-tab" onclick="switchRankingTab('month')">Este Mes</button>
+                        <button class="rank-tab" onclick="switchRankingTab('semester')">Semestral</button>
+                    </div>
+                    <div id="generalRanking"></div>
+                </div>
+
+                <h3>Distribución</h3>
+                <div class="charts-row">
+                    <div class="chart-wrapper"><h4>Total Histórico</h4><div class="chart-box"><canvas id="pieAllTime"></canvas></div></div>
+                    <div class="chart-wrapper"><h4>Últimos 7 Días</h4><div class="chart-box"><canvas id="pieWeekly"></canvas></div></div>
+                </div>
+
+                <h3>Tendencias Históricas</h3>
+                <div class="charts-row"><div class="chart-wrapper full"><h4>Por Día de Semana</h4><div class="chart-box-h"><canvas id="barWeekdays"></canvas></div></div></div>
+                <div class="charts-row">
+                    <div class="chart-wrapper"><h4>Por Mes</h4><div class="chart-box"><canvas id="barMonthly"></canvas></div></div>
+                    <div class="chart-wrapper"><h4>Por Año</h4><div class="chart-box"><canvas id="barYearly"></canvas></div></div>
+                </div>
+
+                <h3>Historial</h3>
+                <div class="table-container">
+                    <table id="sessionsTable" class="modern-table">
+                        <thead><tr><th>Fecha</th><th>Materia</th><th>Tiempo</th><th style="text-align:center">Acción</th></tr></thead>
+                        <tbody id="sessionsListDisplay"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="subjectStatsModal" class="hidden modal-overlay">
+        <div class="modal-content">
+            <button onclick="closeSubjectStatsModal()" class="close-modal">×</button>
+            <h2 id="modalSubjectTitle" style="text-align:center;">Estadísticas</h2>
+            <h4 class="modal-subtitle">🏆 Top 3 Días</h4>
+            <div class="top-3-grid" id="modalTop3Grid"></div>
+            <h4 class="modal-subtitle">Tendencias</h4>
+            <div class="charts-col">
+                <div class="chart-wrapper full"><div class="chart-box-h"><canvas id="subBarWeek"></canvas></div></div>
+                <div class="charts-row" style="margin-top:20px;">
+                    <div class="chart-wrapper"><div class="chart-box"><canvas id="subBarMonth"></canvas></div></div>
+                    <div class="chart-wrapper"><div class="chart-box"><canvas id="subBarYear"></canvas></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="subjectTasksModal" class="hidden modal-overlay">
+        <div class="modal-content small-modal">
+            <button onclick="closeSubjectTasksModal()" class="close-modal">×</button>
+            <h2 id="modalTasksTitle" style="text-align:center;">Lista de Tareas</h2>
+            <div class="task-input-row">
+                <input type="text" id="newTaskInput" placeholder="Nueva tarea...">
+                <button onclick="addTaskFromModal()" class="btn start">Agregar</button>
+            </div>
+            <ul id="taskListModal" class="task-list"></ul>
+        </div>
+    </div>
+
+    <div id="editSessionModal" class="hidden modal-overlay">
+        <div class="modal-content small-modal">
+            <button onclick="closeEditSessionModal()" class="close-modal">×</button>
+            <h3 style="text-align:center;">Editar Sesión</h3>
+            <div class="manual-container">
+                <div class="manual-row"><div class="input-group"><label>Fecha</label><input type="date" id="editSessionDate"></div></div>
+                <div class="manual-row">
+                    <div class="input-group"><label>Horas</label><input type="number" id="editSessionHours" min="0"></div>
+                    <div class="input-group"><label>Minutos</label><input type="number" id="editSessionMinutes" min="0" max="59"></div>
+                </div>
+                <button onclick="saveEditedSession()" class="btn start" style="width:100%; margin-top:15px;">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="allMonthsModal" class="hidden modal-overlay">
+        <div class="modal-content small-modal">
+            <button onclick="document.getElementById('allMonthsModal').classList.add('hidden')" class="close-modal">×</button>
+            <h3 style="text-align:center;">Ranking Mensual Completo</h3>
+            <div id="allMonthsList" style="margin-top:20px;"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
