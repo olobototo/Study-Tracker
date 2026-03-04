@@ -55,6 +55,12 @@ let sessionCompletedTasks = [];
 let currentRankingMode = 'all';
 let sessionToEditId = null;
 
+// Helper para manejar fechas consistentemente con zona horaria local
+function parseLocalDate(fechaStr) {
+    const [year, month, day] = fechaStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+}
+
 // ==========================================
 // 3. GESTIÓN DE MATERIAS
 // ==========================================
@@ -156,7 +162,7 @@ function saveManualSession() {
 }
 function saveSession(ms, txt, dateObj, dateStrOverride = null) {
     if (!activeSubject) return;
-    const fechaStr = dateStrOverride || dateObj.toISOString().split('T')[0];
+    const fechaStr = dateStrOverride || new Date(dateObj.valueOf() + dateObj.getTimezoneOffset() * 60000).toISOString().split('T')[0];
     const newSession = { materia: activeSubject.nombre, fecha_str: fechaStr, fecha_display: dateObj.toLocaleDateString(), duracion_ms: ms, duracion_txt: txt };
     db.transaction(["sessions"], "readwrite").objectStore("sessions").add(newSession).onsuccess = () => {
         alert("Guardado!"); resetTimerState(); deselectSubject(); 
@@ -482,7 +488,7 @@ function loadSubjectsToGrid() {
     const g=document.getElementById('subjectGrid'); const msg=document.getElementById('noSubjectsMsg'); 
     db.transaction("subjects").objectStore("subjects").getAll().onsuccess=e=>{
         g.innerHTML=""; // LIMPIEZA
-        const subs=e.target.result;
+        const subs=e.target.result.sort((a,b) => a.nombre.localeCompare(b.nombre));
         if(subs.length===0) { g.classList.add('hidden'); msg.classList.remove('hidden'); }
         else {
             g.classList.remove('hidden'); msg.classList.add('hidden');
@@ -499,7 +505,8 @@ function loadSubjectsToManagementList(){
     const l=document.getElementById('subjectsListManagement'); 
     db.transaction("subjects").objectStore("subjects").getAll().onsuccess=e=>{
         l.innerHTML=""; // LIMPIEZA
-        e.target.result.forEach(s=>{
+        const sortedSubs = e.target.result.sort((a,b) => a.nombre.localeCompare(b.nombre));
+        sortedSubs.forEach(s=>{
             l.innerHTML+=`
             <li class="manage-subject-item" style="border-left-color:${s.aprobada?'var(--green)':(s.color||'transparent')}">
                 <span style="${s.aprobada?'color:var(--green);font-weight:bold;':''}">${s.nombre} ${s.aprobada?'(Finalizada)':''}</span>
@@ -519,14 +526,15 @@ function loadSubjectsToEventDropdown(){
     const s=document.getElementById('newEventSubject'); 
     db.transaction("subjects").objectStore("subjects").getAll().onsuccess=e=>{
         s.innerHTML='<option value="">-- Sin Materia (General) --</option>'; // LIMPIEZA
-        e.target.result.forEach(x=>s.innerHTML+=`<option value="${x.nombre}">${x.nombre}</option>`);
+        const sortedSubs = e.target.result.sort((a,b) => a.nombre.localeCompare(b.nombre));
+        sortedSubs.forEach(x=>s.innerHTML+=`<option value="${x.nombre}">${x.nombre}</option>`);
     };
 }
 
 function switchRankingTab(type) {
     currentRankingMode = type;
     document.querySelectorAll('.rank-tab').forEach(b => b.classList.remove('active'));
-    const labels = { 'all': 'Histórico', 'month': 'Este Mes', 'semester': 'Semestral' };
+    const labels = { 'all': 'Histórico', 'year': 'Anual', 'semester': 'Semestral', 'month': 'Mensual', 'week': 'Semanal' };
     Array.from(document.querySelectorAll('.rank-tab')).find(b => b.innerText === labels[type]).classList.add('active');
     updateStatsAndStreak();
 }
@@ -554,12 +562,14 @@ function updateStatsAndStreak() {
 
         const sortedDays = Array.from(daysWithStudy).sort();
         let maxStreak=0; let tempStreak=0; let prevDate=null;
-        if(sortedDays.length>0) { sortedDays.forEach(dayStr=>{ const d=new Date(dayStr); if(prevDate && Math.ceil(Math.abs(d-prevDate)/86400000)===1) tempStreak++; else tempStreak=1; if(tempStreak>maxStreak)maxStreak=tempStreak; prevDate=d; }); }
+        if(sortedDays.length>0) { sortedDays.forEach(dayStr=>{ const d=parseLocalDate(dayStr); if(prevDate && Math.ceil(Math.abs(d-prevDate)/86400000)===1) tempStreak++; else tempStreak=1; if(tempStreak>maxStreak)maxStreak=tempStreak; prevDate=d; }); }
         document.getElementById('bestStreakDisplay').innerText = maxStreak + (maxStreak===1?" Día":" Días");
 
         let filteredSessions = sessions;
-        if (currentRankingMode === 'month') { const nowMonth = new Date().toISOString().slice(0, 7); filteredSessions = sessions.filter(s => s.fecha_str.startsWith(nowMonth)); } 
-        else if (currentRankingMode === 'semester') { const sixMonthsAgo = new Date(); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6); filteredSessions = sessions.filter(s => new Date(s.fecha_str) >= sixMonthsAgo); }
+        if (currentRankingMode === 'year') { const nowYear = new Date().getFullYear().toString(); filteredSessions = sessions.filter(s => s.fecha_str.startsWith(nowYear)); }
+        else if (currentRankingMode === 'month') { const nowMonth = new Date().toISOString().slice(0, 7); filteredSessions = sessions.filter(s => s.fecha_str.startsWith(nowMonth)); } 
+        else if (currentRankingMode === 'week') { const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7); filteredSessions = sessions.filter(s => parseLocalDate(s.fecha_str) >= weekAgo); }
+        else if (currentRankingMode === 'semester') { const sixMonthsAgo = new Date(); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6); filteredSessions = sessions.filter(s => parseLocalDate(s.fecha_str) >= sixMonthsAgo); }
 
         const container = document.getElementById('generalRanking'); container.innerHTML = "";
         const map = {}; let totalGlobal = 0;
@@ -587,7 +597,7 @@ function calculateGlobalTopStats(sessions) {
     topDays.forEach(([date, ms], i) => { const [y,m,d] = date.split('-'); daysContainer.innerHTML += `<div class="top-item"><span class="top-rank">#${i+1}</span><span class="top-label">${d}/${m}/${y}</span><span class="top-value">${(ms/3600000).toFixed(1)}h</span></div>`; });
 
     const monthMap = {}; const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-    sessions.forEach(s => { const d = new Date(s.fecha_str); const key = `${d.getFullYear()}-${d.getMonth()}`; monthMap[key] = (monthMap[key] || 0) + s.duracion_ms; });
+    sessions.forEach(s => { const d = parseLocalDate(s.fecha_str); const key = `${d.getFullYear()}-${d.getMonth()}`; monthMap[key] = (monthMap[key] || 0) + s.duracion_ms; });
     const sortedMonths = Object.entries(monthMap).sort((a,b)=>b[1]-a[1]);
     const topMonths = sortedMonths.slice(0,3);
     
@@ -621,16 +631,16 @@ function renderPieCharts(sessions, subjectMeta) {
     const colorsAll = Object.keys(totalMap).map(m => subjectMeta[m]?.color || '#89b4fa');
     createPieChart('pieAllTime', totalMap, colorsAll);
     const weekMap={}; const wAgo=new Date(); wAgo.setDate(wAgo.getDate()-7);
-    sessions.filter(s=>new Date(s.fecha_str)>=wAgo).forEach(s=>weekMap[s.materia]=(weekMap[s.materia]||0)+s.duracion_ms);
+    sessions.filter(s=>parseLocalDate(s.fecha_str)>=wAgo).forEach(s=>weekMap[s.materia]=(weekMap[s.materia]||0)+s.duracion_ms);
     const colorsWeek = Object.keys(weekMap).map(m => subjectMeta[m]?.color || '#89b4fa');
     createPieChart('pieWeekly', weekMap, colorsWeek);
 }
 function renderChartsForContainer(sessions, idWeek, idMonth, idYear, overrideColor = null) {
-    const days=[0,0,0,0,0,0,0]; sessions.forEach(s=>days[new Date(s.fecha_str).getDay()]+=s.duracion_ms);
+    const days=[0,0,0,0,0,0,0]; sessions.forEach(s=>days[parseLocalDate(s.fecha_str).getDay()]+=s.duracion_ms);
     createBarChart(idWeek, ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'], [...days.slice(1),days[0]], overrideColor);
-    const months=new Array(12).fill(0); sessions.forEach(s=>months[new Date(s.fecha_str).getMonth()]+=s.duracion_ms);
+    const months=new Array(12).fill(0); sessions.forEach(s=>months[parseLocalDate(s.fecha_str).getMonth()]+=s.duracion_ms);
     createBarChart(idMonth, ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"], months, overrideColor);
-    const years={}; sessions.forEach(s=>{const y=new Date(s.fecha_str).getFullYear(); years[y]=(years[y]||0)+s.duracion_ms;});
+    const years={}; sessions.forEach(s=>{const y=parseLocalDate(s.fecha_str).getFullYear(); years[y]=(years[y]||0)+s.duracion_ms;});
     createBarChart(idYear, Object.keys(years), Object.values(years), overrideColor);
 }
 function createPieChart(id, map, colors) {
@@ -759,4 +769,4 @@ function showSection(id) {
 }
 function formatTime(ms) { let s=Math.floor((ms/1000)%60), m=Math.floor((ms/60000)%60), h=Math.floor((ms/3600000)%24); return (h<10?"0"+h:h)+":"+(m<10?"0"+m:m)+":"+(s<10?"0"+s:s); }
 function resetTimerState() { clearInterval(tInterval); display.innerHTML="00:00:00"; running=false; paused=false; difference=0; toggleControls(false,false); document.getElementById('saveArea').classList.add('hidden'); }
-function toggleControls(r,f=false) { document.getElementById('startBtn').disabled=r||f; document.getElementById('pauseBtn').disabled=!r; document.getElementById('stopBtn').disabled=!r; }
+function toggleControls(r,f=false) { document.getElementById('startBtn').disabled=r||f; document.getElementById('pauseBtn').disabled=!r; document.getElementById('stopBtn').disabled=!r && !paused; }

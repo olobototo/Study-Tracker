@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StudyTracker v26</title>
+    <title>StudyTracker</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -208,8 +208,10 @@
                 <div class="ranking-container-box">
                     <div class="ranking-tabs">
                         <button class="rank-tab active" onclick="switchRankingTab('all')">Histórico</button>
-                        <button class="rank-tab" onclick="switchRankingTab('month')">Este Mes</button>
+                        <button class="rank-tab" onclick="switchRankingTab('year')">Anual</button>
                         <button class="rank-tab" onclick="switchRankingTab('semester')">Semestral</button>
+                        <button class="rank-tab" onclick="switchRankingTab('month')">Mensual</button>
+                        <button class="rank-tab" onclick="switchRankingTab('week')">Semanal</button>
                     </div>
                     <div id="generalRanking"></div>
                 </div>
