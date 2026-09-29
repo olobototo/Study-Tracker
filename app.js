@@ -43,8 +43,10 @@ request.onerror = e => console.error("Error DB:", e);
 // 2. VARIABLES GLOBALES
 // ==========================================
 let activeSubject = null;
-let startTime, tInterval, difference, running = false, paused = false;
+let startTime, tInterval, pauseInterval, pauseStartTime, difference, running = false, paused = false;
 const display = document.getElementById('display');
+const pauseDisplay = document.getElementById('pauseDisplay');
+const pauseTimerContainer = document.getElementById('pauseTimerContainer');
 let currentCalendarDate = new Date();
 let selectedDateStr = null; 
 let isYearView = false;
@@ -134,14 +136,30 @@ function setMode(mode) {
 
 document.getElementById('startBtn').addEventListener('click', () => {
     if(!running){
+        clearInterval(pauseInterval);
+        pauseTimerContainer.classList.add('hidden');
+        pauseDisplay.innerHTML = "00:00:00";
         startTime = (paused) ? new Date().getTime() - difference : new Date().getTime();
         tInterval = setInterval(() => { updatedTime = new Date().getTime(); difference = updatedTime - startTime; display.innerHTML = formatTime(difference); }, 1000);
         running = true; paused = false; toggleControls(true);
     }
 });
-document.getElementById('pauseBtn').addEventListener('click', () => { if (running) { clearInterval(tInterval); running = false; paused = true; toggleControls(false); } });
+document.getElementById('pauseBtn').addEventListener('click', () => {
+    if (running) {
+        clearInterval(tInterval);
+        running = false;
+        paused = true;
+        pauseStartTime = Date.now();
+        pauseTimerContainer.classList.remove('hidden');
+        pauseDisplay.innerHTML = "00:00:00";
+        pauseInterval = setInterval(() => { pauseDisplay.innerHTML = formatTime(Date.now() - pauseStartTime); }, 1000);
+        toggleControls(false);
+    }
+});
 document.getElementById('stopBtn').addEventListener('click', () => {
-    clearInterval(tInterval); running = false; paused = false;
+    clearInterval(tInterval); clearInterval(pauseInterval); running = false; paused = false;
+    pauseTimerContainer.classList.add('hidden');
+    pauseDisplay.innerHTML = "00:00:00";
     document.getElementById('finalTime').innerText = display.innerHTML;
     document.getElementById('saveArea').classList.remove('hidden');
     toggleControls(false, true);
@@ -768,5 +786,5 @@ function showSection(id) {
     if(id==='calendar-section') renderCalendar();
 }
 function formatTime(ms) { let s=Math.floor((ms/1000)%60), m=Math.floor((ms/60000)%60), h=Math.floor((ms/3600000)%24); return (h<10?"0"+h:h)+":"+(m<10?"0"+m:m)+":"+(s<10?"0"+s:s); }
-function resetTimerState() { clearInterval(tInterval); display.innerHTML="00:00:00"; running=false; paused=false; difference=0; toggleControls(false,false); document.getElementById('saveArea').classList.add('hidden'); }
-function toggleControls(r,f=false) { document.getElementById('startBtn').disabled=r||f; document.getElementById('pauseBtn').disabled=!r; document.getElementById('stopBtn').disabled=!r && !paused; }
+function resetTimerState() { clearInterval(tInterval); clearInterval(pauseInterval); display.innerHTML="00:00:00"; pauseDisplay.innerHTML="00:00:00"; pauseTimerContainer.classList.add('hidden'); running=false; paused=false; difference=0; toggleControls(false,false); document.getElementById('saveArea').classList.add('hidden'); }
+function toggleControls(r,f=false) { const startButton=document.getElementById('startBtn'); startButton.disabled=r||f; startButton.textContent=paused?'Reanudar':'Iniciar'; document.getElementById('pauseBtn').disabled=!r; document.getElementById('stopBtn').disabled=!r && !paused || f; }

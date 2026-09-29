@@ -63,7 +63,12 @@ body { font-family: 'Segoe UI', sans-serif; margin: 0; background-color: var(--b
 /* TIMER UI & TASKS */
 .timer-card { background-color: var(--card-bg); padding: 40px; border-radius: 20px; text-align: center; max-width: 600px; margin: 0 auto; }
 .timer-display { font-size: 5rem; font-family: 'Courier New', monospace; margin: 20px 0; color: var(--accent); }
+.pause-timer { width: fit-content; min-width: 270px; margin: -8px auto 20px; padding: 12px 20px; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); border-radius: 12px; background: #252535; }
+.pause-timer-label { display: flex; justify-content: center; align-items: center; gap: 7px; color: var(--accent); font-size: 0.8rem; font-weight: bold; }
+.pause-timer-label .material-icons { font-size: 1.1rem; }
+.pause-timer .timer-display { margin: 6px 0 0; color: var(--accent); font-size: 2.8rem; }
 .btn { padding: 15px 30px; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; font-weight: bold; margin: 5px; transition:0.2s;}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; filter: saturate(0.5); }
 .btn.start { background-color: var(--green); color: #1e1e2e; } 
 .btn.stop { background-color: var(--red); color: #1e1e2e; }
 .btn-back { margin-top: 20px; background: none; border: 1px solid #45475a; color: #a6adc8; padding: 8px 15px; border-radius: 20px; cursor: pointer; transition: 0.2s; }
